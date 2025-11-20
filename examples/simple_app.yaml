@@ -1,0 +1,23 @@
+name: "My Awesome App"
+version: "0.1.0"
+repository_url: "git@github.com:user/my-awesome-app.git"
+branch: "main"
+
+services:
+  - name: "backend-api"
+    type: "backend"
+    description: "FastAPI backend for the application"
+    docker_image_base: "python:3.11-slim"
+    
+  - name: "tts-engine"
+    type: "audio"
+    description: "Text-to-Speech engine using Coqui TTS"
+    dependencies: ["backend-api"]
+    docker_image_base: "python:3.11-slim"
+    ml_metrics:
+      - name: "mcd"
+        threshold: 6.0
+        operator: "<"
+      - name: "snr"
+        threshold: 20.0
+        operator: ">"
