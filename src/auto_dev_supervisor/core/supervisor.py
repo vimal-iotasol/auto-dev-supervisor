@@ -73,14 +73,30 @@ class Supervisor:
             self.opendevin.execute_task(task, context)
             
             # B. Build & Test
-            if not self.docker_manager.build_services():
-                console.print("[red]Build failed. Requesting fix...[/red]")
+            if task.service_name == "system":
+                # System tasks (like repo setup) don't need docker build/test
+                console.print("[yellow]System task. Skipping build and verification.[/yellow]")
+                task.status = TaskStatus.COMPLETED
+                return
+
+            if not self.docker_manager.build_services(task.service_name):
+                console.print(f"[red]Build failed for {task.service_name}. Requesting fix...[/red]")
                 self.opendevin.fix_issues(task, "Build failed")
                 retries += 1
                 continue
                 
             self.docker_manager.up()
             
+            # For scaffold tasks, we only build containers and skip verification
+            if task.id.startswith("scaffold-"):
+                console.print("[yellow]Scaffold task. Skipping verification for this step.[/yellow]")
+                if not self.skip_git:
+                    console.print("[green]Scaffold completed. Committing...[/green]")
+                    self.git_manager.commit_changes(task, [TaskTestResult(type=TaskTestType.UNIT, passed=True, details="Scaffold")])
+                    self.git_manager.push_changes()
+                task.status = TaskStatus.COMPLETED
+                return
+
             # C. Verify
             test_results = self._run_verification(task, spec)
             all_passed = all(r.passed for r in test_results)

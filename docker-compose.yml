@@ -1,0 +1,23 @@
+services:
+  tts-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.tts-backend
+    container_name: scratch_tts-backend_1
+    environment:
+    - ENV=test
+    image: richtts-app-tts-backend:1.0.0
+    volumes:
+    - .:/app
+  tts-frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.tts-frontend
+    container_name: scratch_tts-frontend_1
+    depends_on:
+    - tts-backend
+    environment:
+    - ENV=test
+    image: richtts-app-tts-frontend:1.0.0
+    volumes:
+    - .:/app

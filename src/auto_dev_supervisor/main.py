@@ -7,28 +7,41 @@ from auto_dev_supervisor.infra.llm import GenAIOpenDevinClient
 from auto_dev_supervisor.infra.docker import DockerManager
 from auto_dev_supervisor.infra.git import GitManager
 from auto_dev_supervisor.domain.qa import QAManager
+from auto_dev_supervisor.gui.app import main as gui_main
 
 app = typer.Typer()
 
 @app.command()
+def gui():
+    """
+    Launch the Auto-Dev Supervisor GUI.
+    """
+    gui_main()
+
+@app.command()
 def run(
     spec_path: str = typer.Argument(..., help="Path to the project YAML specification"),
-    project_root: str = typer.Option(".", help="Root directory for the project to be managed"),
-    max_retries: int = typer.Option(3, help="Maximum retries for auto-fixing issues"),
-    skip_git: bool = typer.Option(False, help="Skip git commit and push operations"),
-    llm_provider: str = typer.Option("mock", help="LLM provider to use: 'mock' or 'openai'")
+    project_root: str = typer.Option(".", "--project-root", help="Root directory for the project to be managed"),
+    max_retries: int = typer.Option(3, "--max-retries", help="Maximum retries for auto-fixing issues"),
+    skip_git: bool = typer.Option(False, "--skip-git", help="Skip git commit and push operations"),
+    llm_provider: str = typer.Option("mock", "--llm-provider", help="LLM provider to use: 'mock', 'openai', 'ollama', 'gemini', 'grok'"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose logging")
 ):
     """
     Run the Autonomous Developer Supervisor.
     """
+    import logging
+    logging.basicConfig(level=logging.DEBUG if verbose else logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    
     abs_project_root = os.path.abspath(project_root)
     
     # Initialize components
     planner = Planner()
     
     opendevin = None
-    if llm_provider == "openai":
-        opendevin = GenAIOpenDevinClient()
+    opendevin = None
+    if llm_provider in ["openai", "ollama", "gemini", "grok"]:
+        opendevin = GenAIOpenDevinClient(provider=llm_provider)
     else:
         opendevin = MockOpenDevinClient()
         
