@@ -5,6 +5,8 @@ import os
 import sys
 import io
 import time
+import json
+import urllib.request
 from typing import Optional
 from datetime import datetime
 
@@ -179,21 +181,45 @@ class AutoDevApp(tk.Tk):
                                     values=["mock", "openai", "ollama", "gemini", "grok"], 
                                     state="readonly", width=15)
         provider_combo.grid(row=0, column=1, padx=10, sticky=tk.W)
+        provider_combo.bind('<<ComboboxSelected>>', self._on_provider_change)
+        
+        # Model Selection (for Ollama and other providers)
+        ttk.Label(options_frame, text="Model:").grid(row=1, column=0, sticky=tk.W, pady=8)
+        self.model_var = tk.StringVar(value="llama3.1")
+        self.model_combo = ttk.Combobox(options_frame, textvariable=self.model_var, 
+                                      values=["llama3.1", "llama3.2", "mistral", "mixtral", "codellama", "phi3"], 
+                                      state="readonly", width=28)
+        self.model_combo.grid(row=1, column=1, padx=10, sticky=tk.W)
+
+        # Refresh models for Ollama
+        self.refresh_models_btn = ttk.Button(options_frame, text="🔄 Refresh Models", command=self._refresh_ollama_models)
+        self.refresh_models_btn.grid(row=1, column=2, padx=5, sticky=tk.W)
         
         # Git Options
         self.skip_git_var = tk.BooleanVar(value=False)
         git_check = ttk.Checkbutton(options_frame, text="Skip Git Operations (for local testing)", 
                                    variable=self.skip_git_var)
-        git_check.grid(row=1, column=0, columnspan=2, sticky=tk.W, pady=8)
+        git_check.grid(row=2, column=0, columnspan=3, sticky=tk.W, pady=8)
         
         # Provider descriptions
         provider_desc = ttk.Label(options_frame, text="💡 Mock: Free testing | OpenAI/Gemini/Grok: Paid AI models | Ollama: Local models", 
                                    font=('Segoe UI', 9, 'italic'))
-        provider_desc.grid(row=2, column=0, columnspan=3, sticky=tk.W, pady=(10, 0))
+        provider_desc.grid(row=4, column=0, columnspan=3, sticky=tk.W, pady=(10, 0))
         
         # Configure grid weights
         config_frame.columnconfigure(1, weight=1)
         options_frame.columnconfigure(1, weight=1)
+
+        # Docker Status and Skip
+        docker_frame = ttk.LabelFrame(self.run_frame, text="🐳 Docker", padding=12)
+        docker_frame.pack(fill=tk.X, padx=20, pady=10)
+        ttk.Label(docker_frame, text="Status:").grid(row=0, column=0, sticky=tk.W)
+        self.docker_status_var = tk.StringVar(value="Unknown")
+        ttk.Label(docker_frame, textvariable=self.docker_status_var).grid(row=0, column=1, sticky=tk.W)
+        ttk.Button(docker_frame, text="Check Docker", command=self._check_docker_status).grid(row=0, column=2, padx=10)
+        self.skip_docker_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(docker_frame, text="Run without Docker", variable=self.skip_docker_var).grid(row=1, column=0, columnspan=3, sticky=tk.W, pady=8)
+        docker_frame.columnconfigure(1, weight=1)
         
         # Action Section
         action_frame = ttk.Frame(self.run_frame)
@@ -217,6 +243,17 @@ class AutoDevApp(tk.Tk):
         self.log_text = scrolledtext.ScrolledText(progress_frame, height=12, font=('Consolas', 9))
         self.log_text.pack(fill=tk.BOTH, expand=True)
 
+        # Health Panel
+        health_frame = ttk.LabelFrame(self.run_frame, text="🩺 System Health", padding=15)
+        health_frame.pack(fill=tk.X, padx=20, pady=10)
+        ttk.Label(health_frame, text="Health Score:").grid(row=0, column=0, sticky=tk.W)
+        self.health_score_var = tk.StringVar(value="N/A")
+        ttk.Label(health_frame, textvariable=self.health_score_var).grid(row=0, column=1, sticky=tk.W)
+        ttk.Label(health_frame, text="Latest Errors:").grid(row=1, column=0, sticky=tk.W, pady=(10,0))
+        self.error_listbox = tk.Listbox(health_frame, height=5)
+        self.error_listbox.grid(row=1, column=1, sticky=tk.EW, pady=(10,0))
+        health_frame.columnconfigure(1, weight=1)
+
     def _create_help_tab(self):
         help_text = tk.Text(self.help_frame, wrap=tk.WORD, padx=20, pady=20, 
                            font=('Segoe UI', 10), bg='#f8f9fa')
@@ -234,7 +271,8 @@ class AutoDevApp(tk.Tk):
 🔧 Configuration:
 • Mock Provider: Free testing mode, no API calls
 • OpenAI/Gemini/Grok: Real AI models, requires API keys
-• Ollama: Local AI models
+• Ollama: Local AI models (llama3.1, mistral, etc.)
+• Model Selection: Choose specific model for each provider
 • Skip Git: Test without committing to git
 
 📊 Understanding the Process:
@@ -268,6 +306,128 @@ Your YAML file should define:
         scrollbar = ttk.Scrollbar(self.help_frame, orient=tk.VERTICAL, command=help_text.yview)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         help_text.config(yscrollcommand=scrollbar.set)
+
+    def _on_provider_change(self, event=None):
+        """Update model selection based on provider"""
+        provider = self.provider_var.get()
+        
+        # Update model options based on provider
+        if provider == "ollama":
+            self._refresh_ollama_models()
+        elif provider == "openai":
+            self._refresh_openai_models()
+        elif provider == "gemini":
+            self._refresh_gemini_models()
+        elif provider == "grok":
+            self._refresh_grok_models()
+        else:
+            # Mock provider - no model selection needed
+            self.model_combo.config(values=["mock"])
+            self.model_var.set("mock")
+
+    def _refresh_ollama_models(self):
+        """Fetch available local Ollama models and populate the model dropdown"""
+        try:
+            req = urllib.request.Request("http://localhost:11434/api/tags")
+            with urllib.request.urlopen(req, timeout=3) as resp:
+                data = resp.read().decode("utf-8")
+                tags = json.loads(data)
+                models = []
+                if isinstance(tags, dict) and "models" in tags:
+                    for m in tags["models"]:
+                        name = m.get("name") or m.get("tag") or ""
+                        if name:
+                            models.append(name)
+                elif isinstance(tags, list):
+                    for m in tags:
+                        name = m.get("name") or m.get("tag") or ""
+                        if name:
+                            models.append(name)
+                if not models:
+                    models = ["llama3.1", "mistral", "codellama"]
+                self.model_combo.config(values=models)
+                self.model_var.set(models[0])
+                self.status_var.set(f"Loaded {len(models)} local Ollama models")
+        except Exception as e:
+            self.status_var.set("Ollama not reachable; using defaults")
+            self.model_combo.config(values=["llama3.1", "llama3.2", "mistral", "mixtral", "codellama", "phi3"]) 
+            self.model_var.set("llama3.1")
+
+    def _check_docker_status(self):
+        try:
+            dm = DockerManager(".")
+            ok, msg = dm.is_available()
+            self.docker_status_var.set("Available" if ok else f"Not available: {msg[:60]}")
+        except Exception as e:
+            self.docker_status_var.set(f"Not available: {str(e)[:60]}")
+
+    def _refresh_openai_models(self):
+        try:
+            from openai import OpenAI
+            api_key = self.openai_key_var.get().strip()
+            client = OpenAI(api_key=api_key) if api_key else OpenAI()
+            models = client.models.list()
+            names = [m.id for m in getattr(models, "data", [])]
+            if not names:
+                names = ["gpt-4-turbo", "gpt-3.5-turbo"]
+            self.model_combo.config(values=names)
+            self.model_var.set(names[0])
+            self.status_var.set(f"Loaded {len(names)} OpenAI models")
+        except Exception:
+            self.model_combo.config(values=["gpt-4-turbo", "gpt-3.5-turbo"]) 
+            self.model_var.set("gpt-4-turbo")
+
+    def _refresh_gemini_models(self):
+        try:
+            import google.generativeai as genai
+            api_key = self.gemini_key_var.get().strip()
+            if api_key:
+                genai.configure(api_key=api_key)
+            models = list(genai.list_models())
+            names = []
+            for m in models:
+                name = getattr(m, "name", None) or getattr(m, "model", None)
+                if name:
+                    names.append(name)
+            if not names:
+                names = ["gemini-1.5-flash", "gemini-1.5-pro"]
+            self.model_combo.config(values=names)
+            self.model_var.set(names[0])
+            self.status_var.set(f"Loaded {len(names)} Gemini models")
+        except Exception:
+            self.model_combo.config(values=["gemini-1.5-flash", "gemini-1.5-pro"]) 
+            self.model_var.set("gemini-1.5-flash")
+
+    def _refresh_grok_models(self):
+        try:
+            self.model_combo.config(values=["grok-beta", "grok-1"]) 
+            self.model_var.set("grok-beta")
+            self.status_var.set("Loaded Grok models")
+        except Exception:
+            self.model_combo.config(values=["grok-beta"]) 
+            self.model_var.set("grok-beta")
+
+    def _on_progress_update(self, metrics: dict):
+        try:
+            sysm = metrics.get("system", {})
+            total = max(1, int(sysm.get("total_tasks", 0)))
+            completed = int(sysm.get("completed_tasks", 0))
+            errors = int(sysm.get("total_errors", 0))
+            recovered = int(sysm.get("recovered_errors", 0))
+            success_rate = completed / total
+            error_penalty = min(1.0, errors / (total * 2))
+            recovery_bonus = min(0.2, recovered / max(1, errors + 1))
+            score = max(0.0, min(1.0, success_rate - error_penalty + recovery_bonus))
+            self.health_score_var.set(f"{score*100:.1f}%")
+            recent = metrics.get("recent_events", [])
+            self.error_listbox.delete(0, tk.END)
+            for ev in recent:
+                if ev.get("type") == "error":
+                    msg = ev.get("message", "")
+                    sid = ev.get("task_id") or "N/A"
+                    self.error_listbox.insert(tk.END, f"{sid}: {msg[:80]}")
+        except Exception:
+            pass
 
     def _browse_spec(self):
         filename = filedialog.askopenfilename(
@@ -303,26 +463,55 @@ Your YAML file should define:
             self.status_var.set("Error saving API keys")
 
     def _test_connection(self):
-        """Test API connection for the selected provider"""
         provider = self.provider_var.get()
         if provider == "mock":
             messagebox.showinfo("Mock Mode", "✅ Mock mode is always available for testing!")
             return
-            
-        # Check if API key exists for the selected provider
-        key_mapping = {
-            "openai": self.openai_key_var,
-            "gemini": self.gemini_key_var,
-            "grok": self.grok_key_var
-        }
-        
-        if provider in key_mapping:
-            if not key_mapping[provider].get().strip():
-                messagebox.showwarning("No API Key", f"Please enter your {provider.upper()} API key first.")
-                return
-                
-        messagebox.showinfo("Connection Test", f"Connection test for {provider} would be implemented here.")
-        # TODO: Implement actual API connection test
+        try:
+            if provider == "openai":
+                from openai import OpenAI
+                api_key = self.openai_key_var.get().strip()
+                if not api_key:
+                    messagebox.showwarning("No API Key", "Enter OpenAI API key first.")
+                    return
+                client = OpenAI(api_key=api_key)
+                models = client.models.list()
+                names = [m.id for m in getattr(models, "data", [])]
+                messagebox.showinfo("OpenAI", f"✅ Connected. Models: {len(names)}")
+                self.status_var.set(f"OpenAI connected: {len(names)} models")
+            elif provider == "gemini":
+                import google.generativeai as genai
+                api_key = self.gemini_key_var.get().strip()
+                if not api_key:
+                    messagebox.showwarning("No API Key", "Enter Gemini API key first.")
+                    return
+                genai.configure(api_key=api_key)
+                models = list(genai.list_models())
+                messagebox.showinfo("Gemini", f"✅ Connected. Models: {len(models)}")
+                self.status_var.set(f"Gemini connected: {len(models)} models")
+            elif provider == "grok":
+                from openai import OpenAI
+                api_key = self.grok_key_var.get().strip()
+                if not api_key:
+                    messagebox.showwarning("No API Key", "Enter Grok API key first.")
+                    return
+                client = OpenAI(base_url="https://api.x.ai/v1", api_key=api_key)
+                _ = client.chat.completions.create(model="grok-beta", messages=[{"role":"user","content":"ping"}])
+                messagebox.showinfo("Grok", "✅ Connected and able to chat.")
+                self.status_var.set("Grok connected")
+            elif provider == "ollama":
+                import urllib.request, json
+                req = urllib.request.Request("http://localhost:11434/api/version")
+                with urllib.request.urlopen(req, timeout=3) as resp:
+                    data = resp.read().decode("utf-8")
+                self.status_var.set("Ollama connected")
+                self._refresh_ollama_models()
+                messagebox.showinfo("Ollama", "✅ Connected and models loaded.")
+            else:
+                messagebox.showinfo("Provider", f"Unsupported provider: {provider}")
+        except Exception as e:
+            messagebox.showerror("Connection Failed", str(e))
+            self.status_var.set(f"Connection failed: {str(e)[:60]}")
 
     def _start_run(self):
         spec_path = self.spec_path_var.get()
@@ -347,6 +536,8 @@ Your YAML file should define:
         self.log_text.insert(tk.END, f"[{timestamp}] Starting Auto-Dev Supervisor...\n")
         self.log_text.insert(tk.END, f"[{timestamp}] Project Spec: {os.path.basename(spec_path)}\n")
         self.log_text.insert(tk.END, f"[{timestamp}] LLM Provider: {self.provider_var.get()}\n")
+        if self.provider_var.get() in ["openai", "ollama", "gemini", "grok"]:
+            self.log_text.insert(tk.END, f"[{timestamp}] Model: {self.model_var.get()}\n")
         self.log_text.insert(tk.END, f"[{timestamp}] Skip Git: {self.skip_git_var.get()}\n")
         self.log_text.insert(tk.END, "-" * 60 + "\n")
         
@@ -386,7 +577,7 @@ Your YAML file should define:
                 if provider in key_mapping and not key_mapping[provider].get().strip():
                     raise ValueError(f"No API key configured for {provider}. Please add it in Configuration tab.")
                     
-                opendevin = GenAIOpenDevinClient(provider=provider, config_manager=self.config_manager)
+                opendevin = GenAIOpenDevinClient(provider=provider, model=self.model_var.get(), config_manager=self.config_manager)
             else:
                 opendevin = MockOpenDevinClient()
                 
@@ -412,14 +603,20 @@ Your YAML file should define:
                 docker_manager=docker_manager,
                 git_manager=git_manager,
                 qa_manager=qa_manager,
-                skip_git=self.skip_git_var.get()
+                skip_git=self.skip_git_var.get(),
+                skip_docker=self.skip_docker_var.get()
             )
+            supervisor.progress_monitor.add_update_callback(self._on_progress_update)
             
             self.status_var.set("Running supervisor...")
             print(f"\n🚀 Starting supervisor execution...")
             print(f"📋 Spec: {os.path.basename(spec_path)}")
             print(f"🔧 Provider: {provider}")
+            if provider in ["openai", "ollama", "gemini", "grok"]:
+                print(f"🤖 Model: {self.model_var.get()}")
             print(f"📦 Skip Git: {self.skip_git_var.get()}")
+            if self.skip_docker_var.get():
+                print(f"🐳 Skip Docker: {self.skip_docker_var.get()}")
             print("-" * 60 + "\n")
             
             supervisor.run(spec_path)

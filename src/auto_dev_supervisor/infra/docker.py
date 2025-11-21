@@ -4,12 +4,19 @@ import os
 import subprocess
 from typing import Dict, List, Optional
 from auto_dev_supervisor.domain.model import ProjectSpec, ServiceSpec, TaskTestResult, TaskTestType
+from auto_dev_supervisor.core.error_handler import EnhancedErrorHandler, ErrorCategory, ErrorSeverity
 
 class DockerManager:
     def __init__(self, project_root: str):
-        self.client = docker.from_env()
+        try:
+            self.client = docker.from_env()
+        except Exception as e:
+            self.client = None
+            print(f"[Docker] Failed to initialize client: {e}")
         self.project_root = project_root
         self.compose_file = os.path.join(project_root, "docker-compose.yml")
+        self.last_error: str = ""
+        # Lazy connectivity; avoid pinging here to prevent GUI startup failures
 
     def _sanitize_name(self, name: str) -> str:
         return name.lower().replace(" ", "-")
@@ -27,6 +34,9 @@ class DockerManager:
                 "environment": ["ENV=test"],
                 "container_name": f"{os.path.basename(os.path.abspath(self.project_root))}_{service.name}_1"
             }
+            # Basic resource management for local compose
+            service_config["mem_limit"] = "512m"
+            service_config["cpus"] = "0.75"
             
             if service.dependencies:
                 service_config["depends_on"] = service.dependencies
@@ -39,6 +49,9 @@ class DockerManager:
 
         with open(self.compose_file, "w") as f:
             yaml.dump(compose_data, f)
+
+    def get_last_error(self) -> str:
+        return self.last_error
 
     def build_services(self, service_name: Optional[str] = None) -> bool:
         try:
@@ -57,10 +70,12 @@ class DockerManager:
             )
             if result.returncode != 0:
                 stderr = result.stderr.decode('utf-8', errors='replace') if result.stderr else ""
-                print(f"Build failed: {stderr}")
+                self.last_error = stderr or "Unknown Docker build error"
+                print(f"Build failed: {self.last_error}")
                 return False
             return True
         except Exception as e:
+            self.last_error = str(e)
             print(f"Build error: {e}")
             return False
 
@@ -76,14 +91,28 @@ class DockerManager:
         except Exception:
             return False
 
+    def is_available(self) -> (bool, str):
+        try:
+            if self.client is None:
+                self.client = docker.from_env()
+            self.client.ping()
+            return True, "Docker is available"
+        except Exception as e:
+            return False, str(e)
+
     def down(self):
         # Use binary mode (text=False) to avoid UnicodeDecodeError on Windows
         subprocess.run(["docker-compose", "down"], cwd=self.project_root, capture_output=True)
 
     def run_tests(self, service_name: str, test_type: TaskTestType) -> TaskTestResult:
-        container_name = f"{os.path.basename(self.project_root)}_{service_name}_1"
-        # Note: Docker Compose container naming can vary. 
-        # A more robust way is to use `docker-compose ps -q service_name`
+        # Resolve container ID via compose for robustness
+        try:
+            ps = subprocess.run([
+                "docker-compose", "ps", "-q", service_name
+            ], cwd=self.project_root, capture_output=True)
+            container_id = ps.stdout.decode('utf-8', errors='replace').strip()
+        except Exception:
+            container_id = ""
         
         cmd = ""
         if test_type == TaskTestType.UNIT:
@@ -94,7 +123,8 @@ class DockerManager:
             cmd = "python scripts/run_ml_qa.py"
             
         try:
-            container = self.client.containers.get(container_name)
+            target = container_id if container_id else f"{os.path.basename(self.project_root)}_{service_name}_1"
+            container = self.client.containers.get(target)
             exec_result = container.exec_run(cmd)
             
             passed = exec_result.exit_code == 0

@@ -4,9 +4,11 @@ services:
       context: .
       dockerfile: Dockerfile.tts-backend
     container_name: scratch_tts-backend_1
+    cpus: '0.75'
     environment:
     - ENV=test
     image: richtts-app-tts-backend:1.0.0
+    mem_limit: 512m
     volumes:
     - .:/app
   tts-frontend:
@@ -14,10 +16,12 @@ services:
       context: .
       dockerfile: Dockerfile.tts-frontend
     container_name: scratch_tts-frontend_1
+    cpus: '0.75'
     depends_on:
     - tts-backend
     environment:
     - ENV=test
     image: richtts-app-tts-frontend:1.0.0
+    mem_limit: 512m
     volumes:
     - .:/app

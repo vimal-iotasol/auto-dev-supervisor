@@ -25,6 +25,8 @@ def run(
     max_retries: int = typer.Option(3, "--max-retries", help="Maximum retries for auto-fixing issues"),
     skip_git: bool = typer.Option(False, "--skip-git", help="Skip git commit and push operations"),
     llm_provider: str = typer.Option("mock", "--llm-provider", help="LLM provider to use: 'mock', 'openai', 'ollama', 'gemini', 'grok'"),
+    model: str = typer.Option(None, "--model", help="Specific model to use (e.g., 'gpt-4-turbo', 'gemini-1.5-flash', 'llama3.1', 'mixtral')"),
+    skip_docker: bool = typer.Option(False, "--skip-docker", help="Run without Docker build/test"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose logging")
 ):
     """
@@ -39,9 +41,16 @@ def run(
     planner = Planner()
     
     opendevin = None
-    opendevin = None
     if llm_provider in ["openai", "ollama", "gemini", "grok"]:
-        opendevin = GenAIOpenDevinClient(provider=llm_provider)
+        # Set appropriate default models for each provider
+        default_models = {
+            "openai": "gpt-4-turbo",
+            "ollama": "llama3.1",
+            "gemini": "gemini-1.5-flash",
+            "grok": "grok-beta"
+        }
+        selected_model = model or default_models.get(llm_provider, "gpt-4-turbo")
+        opendevin = GenAIOpenDevinClient(provider=llm_provider, model=selected_model)
     else:
         opendevin = MockOpenDevinClient()
         
@@ -64,7 +73,8 @@ def run(
         git_manager=git_manager,
         qa_manager=qa_manager,
         max_retries=max_retries,
-        skip_git=skip_git
+        skip_git=skip_git,
+        skip_docker=skip_docker
     )
     
     supervisor.run(spec_path)

@@ -77,10 +77,76 @@ target/
 
 # Jupyter Notebook
 .ipynb_checkpoints
+.ipynb_checkpoints/**
 
 # IPython
 profile_default/
 ipython_config.py
+.ipython/
+.ipython/**
+
+# Additional Python cache patterns
+*.cover
+*.py,cover
+.hypothesis/
+.hypothesis/**
+.coveragerc
+coverage.xml
+*.cover
+.nosetests.xml
+
+# Pylint cache
+.pylint.d/
+.pylint.d/**
+
+# Black cache
+.black-cache/
+.black-cache/**
+
+# isort cache
+.isort.cfg
+.isort_cache/
+.isort_cache/**
+
+# Additional Python development tools cache
+.autopep8-cache/
+.autopep8-cache/**
+.yapfignore
+.yapf_cache/
+.yapf_cache/**
+
+# Python egg and wheel cache
+.eggs/
+*.egg-info/
+*.egg
+MANIFEST
+pip-wheel-metadata/
+pip-wheel-metadata/**
+
+# Python build cache
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+
+# Python virtual environment cache
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+virtualenv/
+virtualenv/**
 
 # pyenv
 #   For a library or package, you might want to ignore these files since the code is
@@ -187,6 +253,7 @@ Thumbs.db
 *.swp
 *.swo
 *~
+.idea/
 
 # Temporary files
 *.tmp
@@ -198,7 +265,406 @@ build/
 dist/
 *.egg-info/
 
+# Example project files (exclude from version control)
+examples/
+services/
+test_service/
+tests/*
+demo_real_estate_app.py
+test_*.py
+verify_*.py
+debug_*.py
+init_repo.py
+create_repo.py
+create_repo.sh
+
+# Python cache and build artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.pyo
+*.pyd
+.Python
+
+# Python version-specific cache directories
+*.cpython-*.pyc
+*.cpython-*.pyo
+*.cpython-*.pyd
+*.cpython-*.so
+
+# pytest cache
+.pytest_cache/
+.pytest_cache/**
+
+# mypy cache
+.mypy_cache/
+.mypy_cache/**
+.dmypy.json
+dmypy.json
+
+# pytype cache
+.pytype/
+.pytype/**
+
+# pyre cache
+.pyre/
+.pyre/**
+
+# pyright cache
+.pyright/
+.pyright/**
+
+# ruff cache
+.ruff_cache/
+.ruff_cache/**
+
+# bandit cache
+.bandit
+
+# tox cache
+.tox/
+.tox/**
+
+# nox cache
+.nox/
+.nox/**
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Python test and coverage artifacts
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Database files (local development)
+database/
+*.db
+*.sqlite3
+*.sqlite3-journal
+
+# Package manager files
+poetry.lock
+package-lock.json
+yarn.lock
+.pdm.toml
+.pdm.lock
+
+# Laravel application files
+app/
+npm-debug.log
+yarn-error.log
+
 # Environment files
 .env.local
 .env.development
 .env.production
+
+# Docker and container files
+.docker/
+docker-compose.override.yml
+
+# Docker files (example/demo files - exclude from version control)
+Dockerfile
+docker-compose.yml
+docker-compose.real-estate.yml
+docker-compose.secrets
+Dockerfile.app
+Dockerfile.calc-backend
+Dockerfile.test-service
+Dockerfile.tts-backend
+Dockerfile.tts-frontend
+
+# Configuration files (example/demo files - exclude from version control)
+supervisor.conf
+nginx.conf
+
+# Log files
+*.log
+logs/
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# Optional npm cache directory
+.npm
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# parcel-bundler cache (https://parceljs.org/)
+.cache
+.parcel-cache
+
+# next.js build output
+.next
+
+# nuxt.js build output
+.nuxt
+
+# vuepress build output
+.vuepress/dist
+
+# Serverless directories
+.serverless
+
+# FuseBox cache
+.fusebox/
+
+# DynamoDB Local files
+.dynamodb/
+
+# TernJS port file
+.tern-port
+
+# Stores VSCode versions used for testing VSCode extensions
+.vscode-test
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+*.orig
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# PEP 582
+__pypackages__/
+
+# Auto-Dev Supervisor specific exclusions
+*.log
+config.local.yaml
+secrets.yaml
+services/*/static/*.mp3
+services/*/history.json
+
+# Audio test files
+test_*.mp3
+test_audio*.mp3
+*.wav
+*.flac
+
+# Build and deployment artifacts
+build/
+dist/
+*.tar.gz
+*.zip
+*.rar
+
+# Local development files
+local/
+.dev/
+.temp/
+
+# Additional comprehensive Python cache patterns
+# Python profiler cache
+*.prof
+.prof/**
+.pstats
+.pstats/**
+
+# Python bytecode cache
+*.py[co]
+*.pyo
+/__pycache__/**
+
+# Python wheel cache
+*.whl
+wheelhouse/
+wheelhouse/**
+
+# Python egg cache
+.eggs/
+*.egg-info/
+*.egg
+MANIFEST
+
+# Python build cache
+build/
+build/**
+dist/
+dist/**
+
+# Python development tool cache
+.autopep8-cache/
+.autopep8-cache/**
+.yapf_cache/
+.yapf_cache/**
+.black-cache/
+.black-cache/**
+.isort_cache/
+.isort_cache/**
+
+# Python test cache
+.coverage
+.coverage.*
+htmlcov/
+htmlcov/**
+.tox/
+.tox/**
+.nox/
+.nox/**
+.pytest_cache/
+.pytest_cache/**
+.mypy_cache/
+.mypy_cache/**
+.dmypy.json
+dmypy.json
+.pytype/
+.pytype/**
+.pyre/
+.pyre/**
+.pyright/
+.pyright/**
+.pylint.d/
+.pylint.d/**
+
+# Python environment cache
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+virtualenv/
+virtualenv/**
+
+# Python package manager cache
+poetry.lock
+poetry.toml
+poetry.cache/
+poetry.cache/**
+Pipfile.lock
+pip-wheel-metadata/
+pip-wheel-metadata/**
+
+# Python Jupyter cache
+.ipynb_checkpoints/
+.ipynb_checkpoints/**
+.ipython/
+.ipython/**
+.jupyter/
+.jupyter_cache/
+.jupyter_cache/**
+
+# Python OS cache
+.DS_Store/
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Python temporary cache
+*.tmp
+*.temp
+*.bak
+*.backup
+*.orig
+*.rej
+*.swp
+*.swo
+*~
+
+# Python IDE cache
+.vscode/
+.vscode/**
+.idea/
+.idea/**
+*.sublime-project
+*.sublime-workspace
+
+# Python project specific cache (Auto-Dev Supervisor)
+*.log
+logs/
+logs/**
+config.local.yaml
+secrets.yaml
+services/*/static/*.mp3
+services/*/history.json
+test_*.mp3
+test_audio*.mp3
+*.wav
+*.flac
+build/
+dist/
+*.tar.gz
+*.zip
+*.rar
+local/
+.dev/
+.temp/
