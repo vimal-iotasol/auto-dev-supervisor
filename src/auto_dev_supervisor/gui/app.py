@@ -4,7 +4,9 @@ import threading
 import os
 import sys
 import io
+import time
 from typing import Optional
+from datetime import datetime
 
 from auto_dev_supervisor.core.config import ConfigManager
 from auto_dev_supervisor.core.planner import Planner
@@ -32,92 +34,254 @@ class RedirectText(io.StringIO):
 class AutoDevApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Auto-Dev Supervisor")
-        self.geometry("800x600")
+        self.title("Auto-Dev Supervisor - AI Development Automation")
+        self.geometry("1000x700")
+        self.minsize(800, 600)
+        
+        # Configure modern theme
+        self.style = ttk.Style()
+        self.style.theme_use('clam')
+        
+        # Configure colors
+        self.configure(bg='#f0f0f0')
+        self.style.configure('TFrame', background='#f0f0f0')
+        self.style.configure('TLabel', background='#f0f0f0', font=('Segoe UI', 10))
+        self.style.configure('TButton', font=('Segoe UI', 10, 'bold'))
+        self.style.configure('Header.TLabel', font=('Segoe UI', 12, 'bold'))
         
         self.config_manager = ConfigManager()
+        self.current_task = None
+        self.is_running = False
         
         self._create_widgets()
         self._load_config()
+        self._center_window()
+
+    def _center_window(self):
+        """Center the window on screen"""
+        self.update_idletasks()
+        width = self.winfo_width()
+        height = self.winfo_height()
+        x = (self.winfo_screenwidth() // 2) - (width // 2)
+        y = (self.winfo_screenheight() // 2) - (height // 2)
+        self.geometry(f'{width}x{height}+{x}+{y}')
 
     def _create_widgets(self):
+        # Create header
+        header_frame = ttk.Frame(self)
+        header_frame.pack(fill=tk.X, padx=20, pady=(20, 10))
+        
+        title_label = ttk.Label(header_frame, text="🤖 Auto-Dev Supervisor", 
+                               style='Header.TLabel', font=('Segoe UI', 16, 'bold'))
+        title_label.pack(side=tk.LEFT)
+        
+        subtitle_label = ttk.Label(header_frame, text="AI-Powered Development Automation", 
+                                  font=('Segoe UI', 10))
+        subtitle_label.pack(side=tk.LEFT, padx=20)
+        
+        # Status bar
+        self.status_var = tk.StringVar(value="Ready")
+        self.status_bar = ttk.Label(self, textvariable=self.status_var, relief=tk.SUNKEN)
+        self.status_bar.pack(side=tk.BOTTOM, fill=tk.X)
+        
+        # Main content
+        main_frame = ttk.Frame(self)
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+        
         # Tabs
-        self.notebook = ttk.Notebook(self)
-        self.notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        self.notebook = ttk.Notebook(main_frame)
+        self.notebook.pack(fill=tk.BOTH, expand=True)
         
         # Tab 1: Run
         self.run_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.run_frame, text="Run")
+        self.notebook.add(self.run_frame, text="🚀 Run")
         self._create_run_tab()
         
         # Tab 2: Configuration
         self.config_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.config_frame, text="Configuration")
+        self.notebook.add(self.config_frame, text="⚙️ Configuration")
         self._create_config_tab()
+        
+        # Tab 3: Help
+        self.help_frame = ttk.Frame(self.notebook)
+        self.notebook.add(self.help_frame, text="❓ Help")
+        self._create_help_tab()
 
     def _create_config_tab(self):
-        frame = ttk.LabelFrame(self.config_frame, text="API Keys", padding=10)
-        frame.pack(fill=tk.X, padx=10, pady=10)
+        # API Keys Section
+        api_frame = ttk.LabelFrame(self.config_frame, text="🔑 API Keys", padding=15)
+        api_frame.pack(fill=tk.X, padx=20, pady=15)
+        
+        # Provider information
+        info_label = ttk.Label(api_frame, text="Configure your LLM provider API keys. Keys are stored securely and masked.", 
+                              font=('Segoe UI', 9, 'italic'))
+        info_label.grid(row=0, column=0, columnspan=2, sticky=tk.W, pady=(0, 10))
         
         # OpenAI
-        ttk.Label(frame, text="OpenAI API Key:").grid(row=0, column=0, sticky=tk.W, pady=5)
+        ttk.Label(api_frame, text="OpenAI API Key:").grid(row=1, column=0, sticky=tk.W, pady=8)
         self.openai_key_var = tk.StringVar()
-        ttk.Entry(frame, textvariable=self.openai_key_var, width=50, show="*").grid(row=0, column=1, padx=5)
+        openai_entry = ttk.Entry(api_frame, textvariable=self.openai_key_var, width=60, show="*")
+        openai_entry.grid(row=1, column=1, padx=10, sticky=tk.EW)
         
-        # Anthropic (Placeholder)
-        ttk.Label(frame, text="Anthropic API Key:").grid(row=1, column=0, sticky=tk.W, pady=5)
+        # Anthropic
+        ttk.Label(api_frame, text="Anthropic API Key:").grid(row=2, column=0, sticky=tk.W, pady=8)
         self.anthropic_key_var = tk.StringVar()
-        ttk.Entry(frame, textvariable=self.anthropic_key_var, width=50, show="*").grid(row=1, column=1, padx=5)
+        anthropic_entry = ttk.Entry(api_frame, textvariable=self.anthropic_key_var, width=60, show="*")
+        anthropic_entry.grid(row=2, column=1, padx=10, sticky=tk.EW)
 
         # Gemini
-        ttk.Label(frame, text="Gemini API Key:").grid(row=2, column=0, sticky=tk.W, pady=5)
+        ttk.Label(api_frame, text="Gemini API Key:").grid(row=3, column=0, sticky=tk.W, pady=8)
         self.gemini_key_var = tk.StringVar()
-        ttk.Entry(frame, textvariable=self.gemini_key_var, width=50, show="*").grid(row=2, column=1, padx=5)
+        gemini_entry = ttk.Entry(api_frame, textvariable=self.gemini_key_var, width=60, show="*")
+        gemini_entry.grid(row=3, column=1, padx=10, sticky=tk.EW)
 
         # Grok
-        ttk.Label(frame, text="Grok API Key:").grid(row=3, column=0, sticky=tk.W, pady=5)
+        ttk.Label(api_frame, text="Grok API Key:").grid(row=4, column=0, sticky=tk.W, pady=8)
         self.grok_key_var = tk.StringVar()
-        ttk.Entry(frame, textvariable=self.grok_key_var, width=50, show="*").grid(row=3, column=1, padx=5)
+        grok_entry = ttk.Entry(api_frame, textvariable=self.grok_key_var, width=60, show="*")
+        grok_entry.grid(row=4, column=1, padx=10, sticky=tk.EW)
+        
+        # Configure grid weights for proper resizing
+        api_frame.columnconfigure(1, weight=1)
+        
+        # Button frame
+        button_frame = ttk.Frame(api_frame)
+        button_frame.grid(row=5, column=1, sticky=tk.E, pady=(15, 0))
         
         # Save Button
-        ttk.Button(frame, text="Save Keys", command=self._save_keys).grid(row=4, column=1, sticky=tk.E, pady=10)
+        save_btn = ttk.Button(button_frame, text="💾 Save Keys", command=self._save_keys, style='Accent.TButton')
+        save_btn.pack(side=tk.RIGHT, padx=(5, 0))
+        
+        # Test Button
+        test_btn = ttk.Button(button_frame, text="🧪 Test Connection", command=self._test_connection)
+        test_btn.pack(side=tk.RIGHT)
 
     def _create_run_tab(self):
+        # Project Configuration Section
+        config_frame = ttk.LabelFrame(self.run_frame, text="📋 Project Configuration", padding=15)
+        config_frame.pack(fill=tk.X, padx=20, pady=15)
+        
         # Spec Selection
-        spec_frame = ttk.Frame(self.run_frame)
-        spec_frame.pack(fill=tk.X, padx=10, pady=5)
-        
-        ttk.Label(spec_frame, text="Project Spec (YAML):").pack(side=tk.LEFT)
+        ttk.Label(config_frame, text="Project Spec (YAML):").grid(row=0, column=0, sticky=tk.W, pady=8)
         self.spec_path_var = tk.StringVar()
-        ttk.Entry(spec_frame, textvariable=self.spec_path_var, width=50).pack(side=tk.LEFT, padx=5)
-        ttk.Button(spec_frame, text="Browse", command=self._browse_spec).pack(side=tk.LEFT)
+        spec_entry = ttk.Entry(config_frame, textvariable=self.spec_path_var, width=60)
+        spec_entry.grid(row=0, column=1, padx=10, sticky=tk.EW)
+        ttk.Button(config_frame, text="📁 Browse", command=self._browse_spec).grid(row=0, column=2, padx=5)
         
-        # Options
-        opts_frame = ttk.Frame(self.run_frame)
-        opts_frame.pack(fill=tk.X, padx=10, pady=5)
+        # Options Section
+        options_frame = ttk.LabelFrame(self.run_frame, text="⚙️ Options", padding=15)
+        options_frame.pack(fill=tk.X, padx=20, pady=15)
         
-        self.skip_git_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(opts_frame, text="Skip Git Operations", variable=self.skip_git_var).pack(side=tk.LEFT, padx=10)
-        
-        ttk.Label(opts_frame, text="LLM Provider:").pack(side=tk.LEFT, padx=5)
+        # Provider Selection
+        ttk.Label(options_frame, text="LLM Provider:").grid(row=0, column=0, sticky=tk.W, pady=8)
         self.provider_var = tk.StringVar(value="mock")
-        ttk.Combobox(opts_frame, textvariable=self.provider_var, values=["mock", "openai", "ollama", "gemini", "grok"]).pack(side=tk.LEFT)
+        provider_combo = ttk.Combobox(options_frame, textvariable=self.provider_var, 
+                                    values=["mock", "openai", "ollama", "gemini", "grok"], 
+                                    state="readonly", width=15)
+        provider_combo.grid(row=0, column=1, padx=10, sticky=tk.W)
+        
+        # Git Options
+        self.skip_git_var = tk.BooleanVar(value=False)
+        git_check = ttk.Checkbutton(options_frame, text="Skip Git Operations (for local testing)", 
+                                   variable=self.skip_git_var)
+        git_check.grid(row=1, column=0, columnspan=2, sticky=tk.W, pady=8)
+        
+        # Provider descriptions
+        provider_desc = ttk.Label(options_frame, text="💡 Mock: Free testing | OpenAI/Gemini/Grok: Paid AI models | Ollama: Local models", 
+                                   font=('Segoe UI', 9, 'italic'))
+        provider_desc.grid(row=2, column=0, columnspan=3, sticky=tk.W, pady=(10, 0))
+        
+        # Configure grid weights
+        config_frame.columnconfigure(1, weight=1)
+        options_frame.columnconfigure(1, weight=1)
+        
+        # Action Section
+        action_frame = ttk.Frame(self.run_frame)
+        action_frame.pack(fill=tk.X, padx=20, pady=20)
         
         # Run Button
-        self.run_btn = ttk.Button(self.run_frame, text="Run Supervisor", command=self._start_run)
+        self.run_btn = ttk.Button(action_frame, text="🚀 Run Supervisor", command=self._start_run, 
+                                 style='Accent.TButton', width=20)
         self.run_btn.pack(pady=10)
         
-        # Logs
-        log_frame = ttk.LabelFrame(self.run_frame, text="Logs", padding=5)
-        log_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        # Progress Section
+        progress_frame = ttk.LabelFrame(self.run_frame, text="📊 Progress", padding=15)
+        progress_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=15)
         
-        self.log_text = scrolledtext.ScrolledText(log_frame, height=15)
+        # Progress bar
+        self.progress_var = tk.DoubleVar()
+        self.progress_bar = ttk.Progressbar(progress_frame, variable=self.progress_var, mode='indeterminate')
+        self.progress_bar.pack(fill=tk.X, pady=(0, 10))
+        
+        # Logs
+        self.log_text = scrolledtext.ScrolledText(progress_frame, height=12, font=('Consolas', 9))
         self.log_text.pack(fill=tk.BOTH, expand=True)
 
+    def _create_help_tab(self):
+        help_text = tk.Text(self.help_frame, wrap=tk.WORD, padx=20, pady=20, 
+                           font=('Segoe UI', 10), bg='#f8f9fa')
+        help_text.pack(fill=tk.BOTH, expand=True)
+        
+        help_content = """
+🤖 Auto-Dev Supervisor Help
+
+📋 Getting Started:
+1. Configure your API keys in the Configuration tab
+2. Select a project specification YAML file
+3. Choose your LLM provider (Mock for testing)
+4. Click "Run Supervisor" to start automation
+
+🔧 Configuration:
+• Mock Provider: Free testing mode, no API calls
+• OpenAI/Gemini/Grok: Real AI models, requires API keys
+• Ollama: Local AI models
+• Skip Git: Test without committing to git
+
+📊 Understanding the Process:
+The supervisor follows an iterative development cycle:
+PLAN → IMPLEMENT → BUILD → TEST → QA → FIX → COMMIT → PUSH
+
+🛠️ Troubleshooting:
+• Check logs for detailed error messages
+• Ensure Docker is running for containerized builds
+• Verify API keys are valid for chosen provider
+• Use Mock mode to test supervisor logic
+
+📁 Project Spec Format:
+Your YAML file should define:
+- Project name and version
+- Repository URL and branch
+- Services with types (backend/frontend/audio/ml)
+- Dependencies between services
+- Quality metrics for ML/Audio services
+
+🔗 More Information:
+• User Guide: docs/USER_GUIDE.md
+• Architecture: docs/ARCHITECTURE.md
+• Examples: examples/ directory
+        """
+        
+        help_text.insert(1.0, help_content)
+        help_text.config(state=tk.DISABLED)
+        
+        # Add scrollbar
+        scrollbar = ttk.Scrollbar(self.help_frame, orient=tk.VERTICAL, command=help_text.yview)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        help_text.config(yscrollcommand=scrollbar.set)
+
     def _browse_spec(self):
-        filename = filedialog.askopenfilename(filetypes=[("YAML files", "*.yaml"), ("All files", "*.*")])
+        filename = filedialog.askopenfilename(
+            title="Select Project Specification File",
+            filetypes=[
+                ("YAML files", "*.yaml"),
+                ("YAML files", "*.yml"), 
+                ("All files", "*.*")
+            ],
+            initialdir="examples"
+        )
         if filename:
             self.spec_path_var.set(filename)
+            self.status_var.set(f"Selected: {os.path.basename(filename)}")
 
     def _load_config(self):
         self.openai_key_var.set(self.config_manager.get_api_key("openai") or "")
@@ -126,11 +290,39 @@ class AutoDevApp(tk.Tk):
         self.grok_key_var.set(self.config_manager.get_api_key("grok") or "")
 
     def _save_keys(self):
-        self.config_manager.set_api_key("openai", self.openai_key_var.get())
-        self.config_manager.set_api_key("anthropic", self.anthropic_key_var.get())
-        self.config_manager.set_api_key("gemini", self.gemini_key_var.get())
-        self.config_manager.set_api_key("grok", self.grok_key_var.get())
-        messagebox.showinfo("Success", "API Keys saved successfully!")
+        """Save API keys with validation and feedback"""
+        try:
+            self.config_manager.set_api_key("openai", self.openai_key_var.get())
+            self.config_manager.set_api_key("anthropic", self.anthropic_key_var.get())
+            self.config_manager.set_api_key("gemini", self.gemini_key_var.get())
+            self.config_manager.set_api_key("grok", self.grok_key_var.get())
+            messagebox.showinfo("Success", "✅ API Keys saved successfully!")
+            self.status_var.set("API keys saved successfully")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to save API keys: {e}")
+            self.status_var.set("Error saving API keys")
+
+    def _test_connection(self):
+        """Test API connection for the selected provider"""
+        provider = self.provider_var.get()
+        if provider == "mock":
+            messagebox.showinfo("Mock Mode", "✅ Mock mode is always available for testing!")
+            return
+            
+        # Check if API key exists for the selected provider
+        key_mapping = {
+            "openai": self.openai_key_var,
+            "gemini": self.gemini_key_var,
+            "grok": self.grok_key_var
+        }
+        
+        if provider in key_mapping:
+            if not key_mapping[provider].get().strip():
+                messagebox.showwarning("No API Key", f"Please enter your {provider.upper()} API key first.")
+                return
+                
+        messagebox.showinfo("Connection Test", f"Connection test for {provider} would be implemented here.")
+        # TODO: Implement actual API connection test
 
     def _start_run(self):
         spec_path = self.spec_path_var.get()
@@ -138,8 +330,25 @@ class AutoDevApp(tk.Tk):
             messagebox.showerror("Error", "Please select a specification file.")
             return
             
+        if not os.path.exists(spec_path):
+            messagebox.showerror("Error", f"Specification file not found: {spec_path}")
+            return
+            
         self.run_btn.config(state=tk.DISABLED)
+        self.is_running = True
         self.log_text.delete(1.0, tk.END)
+        self.status_var.set("Starting supervisor...")
+        
+        # Start progress bar
+        self.progress_bar.start()
+        
+        # Add timestamp to logs
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self.log_text.insert(tk.END, f"[{timestamp}] Starting Auto-Dev Supervisor...\n")
+        self.log_text.insert(tk.END, f"[{timestamp}] Project Spec: {os.path.basename(spec_path)}\n")
+        self.log_text.insert(tk.END, f"[{timestamp}] LLM Provider: {self.provider_var.get()}\n")
+        self.log_text.insert(tk.END, f"[{timestamp}] Skip Git: {self.skip_git_var.get()}\n")
+        self.log_text.insert(tk.END, "-" * 60 + "\n")
         
         # Run in thread to keep GUI responsive
         thread = threading.Thread(target=self._run_supervisor, args=(spec_path,))
@@ -147,6 +356,7 @@ class AutoDevApp(tk.Tk):
         thread.start()
 
     def _run_supervisor(self, spec_path):
+        """Run the supervisor with proper status updates and error handling"""
         # Redirect stdout/stderr
         old_stdout = sys.stdout
         old_stderr = sys.stderr
@@ -154,24 +364,37 @@ class AutoDevApp(tk.Tk):
         sys.stderr = RedirectText(self.log_text)
         
         try:
+            self.status_var.set("Initializing components...")
+            
             # Setup components
             project_root = "." # Use current working directory
             abs_project_root = os.path.abspath(project_root)
             
+            self.status_var.set("Setting up planner...")
             planner = Planner()
             
+            self.status_var.set(f"Configuring {self.provider_var.get()} provider...")
             provider = self.provider_var.get()
             if provider in ["openai", "ollama", "gemini", "grok"]:
+                # Validate API key exists
+                key_mapping = {
+                    "openai": self.openai_key_var,
+                    "gemini": self.gemini_key_var,
+                    "grok": self.grok_key_var
+                }
+                
+                if provider in key_mapping and not key_mapping[provider].get().strip():
+                    raise ValueError(f"No API key configured for {provider}. Please add it in Configuration tab.")
+                    
                 opendevin = GenAIOpenDevinClient(provider=provider, config_manager=self.config_manager)
             else:
                 opendevin = MockOpenDevinClient()
                 
+            self.status_var.set("Setting up Docker manager...")
             docker_manager = DockerManager(abs_project_root)
             
+            self.status_var.set("Setting up Git manager...")
             # We need to parse spec to get repo url for git manager
-            # But supervisor does that too. 
-            # Let's just init git manager with placeholders if we skip git, or try to parse.
-            # For robustness in this demo, we'll assume git manager handles lazy init or we parse here.
             try:
                 spec = planner.parse_spec(spec_path)
                 git_manager = GitManager(abs_project_root, spec.repository_url, spec.branch)
@@ -179,8 +402,10 @@ class AutoDevApp(tk.Tk):
                 # If parsing fails here, supervisor will catch it too, or we just pass dummy
                 git_manager = GitManager(abs_project_root, "dummy", "main")
             
+            self.status_var.set("Setting up QA manager...")
             qa_manager = QAManager()
             
+            self.status_var.set("Creating supervisor...")
             supervisor = Supervisor(
                 planner=planner,
                 opendevin=opendevin,
@@ -190,17 +415,34 @@ class AutoDevApp(tk.Tk):
                 skip_git=self.skip_git_var.get()
             )
             
+            self.status_var.set("Running supervisor...")
+            print(f"\n🚀 Starting supervisor execution...")
+            print(f"📋 Spec: {os.path.basename(spec_path)}")
+            print(f"🔧 Provider: {provider}")
+            print(f"📦 Skip Git: {self.skip_git_var.get()}")
+            print("-" * 60 + "\n")
+            
             supervisor.run(spec_path)
             
-            messagebox.showinfo("Finished", "Supervisor run completed.")
+            self.status_var.set("Completed successfully")
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            print(f"\n[{timestamp}] ✅ Supervisor run completed successfully!")
+            
+            messagebox.showinfo("Success", "🎉 Supervisor run completed successfully!")
             
         except Exception as e:
-            print(f"Error: {e}")
-            messagebox.showerror("Error", f"An error occurred: {e}")
+            self.status_var.set(f"Error: {str(e)[:50]}...")
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            print(f"\n[{timestamp}] ❌ Error: {e}")
+            print(f"[{timestamp}] 💡 Check the logs above for more details.")
+            messagebox.showerror("Error", f"An error occurred during supervisor execution:\n\n{e}\n\nCheck the logs for more details.")
         finally:
             sys.stdout = old_stdout
             sys.stderr = old_stderr
             self.run_btn.config(state=tk.NORMAL)
+            self.is_running = False
+            self.progress_bar.stop()
+            self.status_var.set("Ready")
 
 def main():
     app = AutoDevApp()

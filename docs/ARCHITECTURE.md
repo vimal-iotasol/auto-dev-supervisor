@@ -27,6 +27,13 @@ The `auto-dev` supervisor is designed as a modular, state-machine-driven applica
 - **DockerManager**: Wraps the Docker SDK. Generates `docker-compose.yml` dynamically based on the project spec and manages container lifecycles.
 - **GitManager**: Wraps `gitpython`. Handles repo initialization, staging, committing (with structured messages), and pushing.
 
+### 4. GUI Layer (`src/auto_dev_supervisor/gui/`)
+- **AutoDevApp**: Main GUI application built with Tkinter
+    - **Run Tab**: Project execution interface with spec selection, provider choice, and real-time logs
+    - **Configuration Tab**: Secure API key management with password masking
+    - **RedirectText**: Real-time log capture and display in GUI
+    - Threading support for non-blocking operations
+
 ## Data Flow
 
 ```mermaid

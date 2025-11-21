@@ -14,11 +14,25 @@ A production-grade Autonomous Developer Supervisor Application that controls Ope
 - **Dockerized Environments**: Builds and tests apps in isolated containers.
 - **ML/Audio QA**: Enforces quality metrics (MCD, SNR, MOS) for AI apps.
 - **Git Automation**: Commits only stable code with detailed messages.
-- **GenAI Integration**: Uses LLMs (OpenAI) to write and fix code.
+- **GenAI Integration**: Uses LLMs (OpenAI, Gemini, Grok, Anthropic) to write and fix code.
 - **Flexible Workflow**: Supports `--skip-git` for local experimentation.
+- **GUI Interface**: User-friendly desktop application for easy configuration and monitoring.
 
 ## 🚀 Quick Start
 
+### GUI Mode (Recommended for Beginners)
+1.  **Launch GUI**:
+    ```bash
+    poetry run auto-dev gui
+    ```
+    ![GUI Interface](GUI.png)
+
+2.  **Configure API Keys** in the GUI (Configuration tab)
+3.  **Select Project Spec** (YAML file)
+4.  **Choose LLM Provider** and options
+5.  **Click Run Supervisor** and monitor progress
+
+### CLI Mode (Advanced Users)
 1.  **Install**:
     ```bash
     poetry install
