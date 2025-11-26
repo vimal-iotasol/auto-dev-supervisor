@@ -1,0 +1,36 @@
+name: "RichTTS App"
+version: "1.0.0"
+repository_url: "https://github.com/user/rich-tts-app.git"
+branch: "main"
+
+services:
+  - name: "tts-backend"
+    type: "backend"
+    description: |
+      A robust FastAPI backend for Text-to-Speech conversion.
+      Features:
+      - Endpoint `/synthesize`: Accepts text, language, and speed. Returns audio file.
+      - Endpoint `/voices`: Returns list of available languages/accents.
+      - Endpoint `/history`: Stores and retrieves past generations (metadata only).
+      - Uses `gTTS` (Google Text-to-Speech) library for high-quality output.
+      - Saves generated audio files to a local `static` directory.
+    docker_image_base: "python:3.11-slim"
+    ml_metrics:
+      - name: "mos" # Mean Opinion Score (simulated)
+        threshold: 4.0
+        operator: ">"
+      - name: "latency"
+        threshold: 500 # ms
+        operator: "<"
+
+  - name: "tts-frontend"
+    type: "frontend"
+    description: |
+      A Streamlit-based web interface for the TTS App.
+      Features:
+      - Text Input Area: Multi-line text entry.
+      - Sidebar Controls: Language selector, Slow/Fast toggle.
+      - Audio Player: Plays the generated audio directly in browser.
+      - Download Button: Allows downloading the MP3.
+      - History View: Shows table of recent conversions.
+    dependencies: ["tts-backend"]

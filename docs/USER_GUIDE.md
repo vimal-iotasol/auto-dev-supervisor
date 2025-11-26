@@ -2,6 +2,37 @@
 
 This guide provides detailed instructions on how to set up, configure, and run the `auto-dev` system.
 
+## 🖥️ GUI Mode (Recommended for Beginners)
+
+The easiest way to use auto-dev is through the graphical interface:
+
+### Starting the GUI
+```bash
+poetry run auto-dev gui
+```
+
+This will launch a desktop application with the following features:
+
+![GUI Interface](../GUI.png)
+
+### GUI Features
+- **Run Tab**: Main interface for running the supervisor
+  - Project spec file selection
+  - LLM provider selection (OpenAI, Gemini, Grok, Ollama, Mock)
+  - Skip Git operations option
+  - Real-time log monitoring
+- **Configuration Tab**: API key management
+  - Secure API key input with password masking
+  - Support for multiple LLM providers
+  - Persistent configuration storage
+
+### Using the GUI
+1. **Configure API Keys**: Go to the Configuration tab and enter your API keys
+2. **Select Project**: Click "Browse" to select your YAML specification file
+3. **Choose Options**: Select your LLM provider and check "Skip Git Operations" if desired
+4. **Run**: Click "Run Supervisor" and monitor progress in the logs
+5. **Results**: Check the logs for completion status and any errors
+
 ## 1. Prerequisites
 
 Before running `auto-dev`, ensure you have the following installed:
@@ -66,6 +97,12 @@ services:
 ## 4. Running the Application
 
 The CLI tool is named `auto-dev`. You can run it using `poetry run auto-dev`.
+
+### GUI Mode
+```bash
+poetry run auto-dev gui
+```
+Opens the graphical interface for easy configuration and monitoring.
 
 ### Use Case A: Simulation / Mock Mode (Default)
 
